@@ -20,7 +20,10 @@ cargo build --release
 use redlock::{random_char, RedLock};
 
 fn main() {
-    let rl = RedLock::new(vec!["redis://127.0.0.1:6380/", "redis://127.0.0.1:6381/", "redis://127.0.0.1:6382/"]);
+    let rl = RedLock::new(vec![
+        "redis://127.0.0.1:6380/",
+        "redis://127.0.0.1:6381/",
+        "redis://127.0.0.1:6382/"]);
 
     let lock;
     loop {
