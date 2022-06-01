@@ -126,12 +126,23 @@ impl RedLock {
     ///
     /// If it fails. `None` is returned.
     /// A user should retry after a short wait time.
-    pub fn lock(&self, resource: &[u8], ttl: usize) -> Option<Lock> {
-        let val = self.get_unique_lock_id().unwrap();
+    pub fn lock(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> Option<Lock> {
+        // let val = self.get_unique_lock_id().unwrap();
 
-        let mut rng = thread_rng();
+        let retry_count = {
+            ||
+                if let Some(count) = retry_count {
+                    if count > 0 {
+                        count
+                    } else {
+                        self.retry_count
+                    }
+                } else {
+                    self.retry_count
+                }
+        }();
 
-        for _ in 0..self.retry_count {
+        for _ in 0..retry_count {
             let mut n = 0;
             let start_time = Instant::now();
             for client in &self.servers {
@@ -143,9 +154,9 @@ impl RedLock {
             let drift = (ttl as f32 * CLOCK_DRIFT_FACTOR) as usize + 2;
             let elapsed = start_time.elapsed();
             let validity_time = ttl
-                - drift
-                - elapsed.as_secs() as usize * 1000
-                - elapsed.subsec_nanos() as usize / 1_000_000;
+                .saturating_sub(drift)
+                .saturating_sub(elapsed.as_secs() as usize * 1000)
+                .saturating_sub(elapsed.subsec_nanos() as usize / 1_000_000);
 
             if n >= self.quorum && validity_time > 0 {
                 return Some(Lock {
@@ -160,8 +171,13 @@ impl RedLock {
                 }
             }
 
-            let n = rng.gen_range(0..self.retry_delay);
-            sleep(Duration::from_millis(u64::from(n)));
+            if let Some(retry_delay) = retry_delay {
+                sleep(Duration::from_millis(u64::from(retry_delay)))
+            } else {
+                let mut rng = thread_rng();
+                let n = rng.gen_range(0..self.retry_delay);
+                sleep(Duration::from_millis(u64::from(n)));
+            }
         }
         None
     }
@@ -173,10 +189,10 @@ impl RedLock {
     /// Returns a `RedLockGuard` instance which is a RAII wrapper for \
     /// the old `Lock` object
     #[cfg(feature = "async")]
-    pub async fn acquire_async(&self, resource: &[u8], ttl: usize) -> RedLockGuard<'_> {
+    pub async fn acquire_async(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedLockGuard<'_> {
         let lock;
         loop {
-            match self.lock(resource, ttl) {
+            match self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {
                 Some(l) => {
                     lock = l;
                     break;
@@ -187,10 +203,10 @@ impl RedLock {
         RedLockGuard { lock }
     }
 
-    pub fn acquire(&self, resource: &[u8], ttl: usize) -> RedLockGuard<'_> {
+    pub fn acquire(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedLockGuard<'_> {
         let lock;
         loop {
-            if let Some(l) = self.lock(resource, ttl) {
+            if let Some(l) = self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {
                 lock = l;
                 break;
             }
@@ -229,6 +245,7 @@ mod tests {
     use testcontainers::clients::Cli;
     use testcontainers::images::redis::Redis;
     use testcontainers::{Container, Docker};
+    use crate::random_char;
 
     use super::*;
 
@@ -305,7 +322,7 @@ mod tests {
         let rl = RedLock::new(ADDRESSES.clone());
         let key = rl.get_unique_lock_id()?;
 
-        let val = rl.get_unique_lock_id()?;
+        let val = random_char(Some(20));
         let mut con = rl.servers[0].get_connection()?;
 
         redis::cmd("DEL").arg(&*key).execute(&mut con);
@@ -343,7 +360,9 @@ mod tests {
         let rl = RedLock::new(ADDRESSES.clone());
 
         let key = rl.get_unique_lock_id()?;
-        match rl.lock(&key, 1000) {
+        let val = random_char(Some(20));
+
+        match rl.lock(&key, val, 1000, None, None) {
             Some(lock) => {
                 assert_eq!(key, lock.resource);
                 assert_eq!(20, lock.val.len());
@@ -355,7 +374,7 @@ mod tests {
                 );
             }
             None => panic!("Lock failed"),
-        }
+        };
         Ok(())
     }
 
@@ -366,21 +385,23 @@ mod tests {
         let rl2 = RedLock::new(ADDRESSES.clone());
 
         let key = rl.get_unique_lock_id()?;
+        let val1 = random_char(Some(20));
+        let val2 = random_char(Some(20));
 
-        let lock = rl.lock(&key, 1000).unwrap();
+        let lock = rl.lock(&key, val1.clone(), 1000, None, None).unwrap();
         assert!(
             lock.validity_time > 900,
             "validity time: {}",
             lock.validity_time
         );
 
-        if let Some(_l) = rl2.lock(&key, 1000) {
+        if let Some(_l) = rl2.lock(&key, val2.clone(), 1000, None, None) {
             panic!("Lock acquired, even though it should be locked")
         }
 
         rl.unlock(&lock);
 
-        match rl2.lock(&key, 1000) {
+        match rl2.lock(&key, val2, 1000, None, None) {
             Some(l) => assert!(l.validity_time > 900),
             None => panic!("Lock couldn't be acquired"),
         }
@@ -394,8 +415,10 @@ mod tests {
         let rl2 = RedLock::new(ADDRESSES.clone());
 
         let key = rl.get_unique_lock_id()?;
+        let val1 = random_char(Some(20));
+        let val2 = random_char(Some(20));
         {
-            let lock_guard = rl.acquire(&key, 1000);
+            let lock_guard = rl.acquire(&key, val1.clone(), 1000, None, None);
             let lock = &lock_guard.lock;
             assert!(
                 lock.validity_time > 900,
@@ -403,12 +426,12 @@ mod tests {
                 lock.validity_time
             );
 
-            if let Some(_l) = rl2.lock(&key, 1000) {
+            if let Some(_l) = rl2.lock(&key, val2.clone(), 1000, None, None) {
                 panic!("Lock acquired, even though it should be locked")
             }
         }
 
-        match rl2.lock(&key, 1000) {
+        match rl2.lock(&key, val2.clone(), 1000, None, None) {
             Some(l) => assert!(l.validity_time > 900),
             None => panic!("Lock couldn't be acquired"),
         }
