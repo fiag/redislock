@@ -3,8 +3,8 @@
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/badboy/redlock-rs/CI)
 ![Crates.io](https://img.shields.io/crates/v/redlock)
 
-This is an implementation of Redlock, the [distributed locking mechanism][distlock] built on top of Redis.
-It is more or less a port of the [Ruby version][redlock.rb].
+This is an implementation of Redlock, the [distributed locking mechanism][distlock] built on top of Redis. It is more or
+less a port of the [Ruby version][redlock.rb].
 
 It includes a sample application in [main.rs](src/main.rs).
 
@@ -17,24 +17,30 @@ cargo build --release
 ## Usage
 
 ```rust
-use redlock::RedLock;
+use redlock::{random_char, RedLock};
 
 fn main() {
-  let rl = RedLock::new(vec!["redis://127.0.0.1:6380/", "redis://127.0.0.1:6381/", "redis://127.0.0.1:6382/"]);
+    let rl = RedLock::new(vec![
+        "redis://127.0.0.1:6380/",
+        "redis://127.0.0.1:6381/",
+        "redis://127.0.0.1:6382/"]);
 
-  let lock;
-  loop {
-    match rl.lock("mutex".as_bytes(), 1000) {
-      Some(l) => { lock = l; break }
-      None => ()
+    let lock;
+    loop {
+        let val = random_char(Some(20));
+        match rl.lock("mutex".as_bytes(), val, 1000, None, None) {
+            Some(l) => {
+                lock = l;
+                break;
+            }
+            None => ()
+        }
     }
-  }
 
-  // Critical section
+    // Critical section
 
-  rl.unlock(&lock);
+    rl.unlock(&lock);
 }
-
 ```
 
 ## Tests
@@ -62,7 +68,8 @@ If you find bugs or want to help otherwise, please [open an issue](https://githu
 
 ## License
 
-BSD. See [LICENSE](LICENSE).  
+BSD. See [LICENSE](LICENSE).
 
 [distlock]: http://redis.io/topics/distlock
+
 [redlock.rb]: https://github.com/antirez/redlock-rb
