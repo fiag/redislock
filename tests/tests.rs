@@ -1,23 +1,31 @@
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use testcontainers::clients::Cli;
 use testcontainers::images::redis::Redis;
-use testcontainers::{Container, Docker};
+use testcontainers::Container;
+use testcontainers::clients::Cli;
 use redislock::{Lock, random_char, RedisLock};
 
-static DOCKER: Lazy<Cli> = Lazy::new(Cli::default);
-static CONTAINERS: Lazy<Vec<Container<Cli, Redis>>> = Lazy::new(|| {
-    (0..3)
-        .map(|_| DOCKER.run(Redis::default().with_tag("6-alpine")))
-        .collect()
-});
-static ADDRESSES: Lazy<Vec<String>> = Lazy::new(|| match std::env::var("ADDRESSES") {
-    Ok(addresses) => addresses.split(',').map(String::from).collect(),
-    Err(_) => CONTAINERS
-        .iter()
-        .map(|c| format!("redis://localhost:{}", c.get_host_port(6379).unwrap()))
-        .collect(),
-});
+// static DOCKER: Lazy<Cli> = Lazy::new(Cli::default);
+// static CONTAINERS: Lazy<Vec<Container<Redis>>> = Lazy::new(|| {
+//     (0..3)
+//         .map(|_| DOCKER.run(Redis::default()))
+//         .collect()
+// });
+// static ADDRESSES: Lazy<Vec<String>> = Lazy::new(|| match std::env::var("ADDRESSES") {
+//     Ok(addresses) => addresses.split(',').map(String::from).collect(),
+//     Err(_) => CONTAINERS
+//         .iter()
+//         .map(|c| format!("redis://localhost:{}", c.get_host_port_ipv4(6379)))
+//         .collect(),
+// });
+
+fn redis_address() -> Vec<String> {
+    let docker = Cli::default();
+    let containers:Vec<Container<Redis>> = (0..3).map(|_| docker.run(Redis::default())).collect();
+    match std::env::var("ADDRESSES") {
+        Ok(addresses) => addresses.split(',').map(String::from).collect(),
+        Err(_) => containers.iter().map(|c| format!("redis://localhost:{}", c.get_host_port_ipv4(6379))).collect()
+    }
+}
 
 #[test]
 fn test_redlock_get_unique_id() -> Result<()> {
@@ -41,16 +49,16 @@ fn test_redlock_get_unique_id_uniqueness() -> Result<()> {
 
 #[test]
 fn test_redlock_valid_instance() {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
     assert_eq!(3, rl.servers.len());
     assert_eq!(2, rl.quorum());
 }
 
 #[test]
 fn test_redlock_direct_unlock_fails() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
     let key = rl.get_unique_lock_id()?;
 
     let val = rl.get_unique_lock_id()?;
@@ -60,8 +68,8 @@ fn test_redlock_direct_unlock_fails() -> Result<()> {
 
 #[test]
 fn test_redlock_direct_unlock_succeeds() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
     let key = rl.get_unique_lock_id()?;
 
     let val = rl.get_unique_lock_id()?;
@@ -74,8 +82,8 @@ fn test_redlock_direct_unlock_succeeds() -> Result<()> {
 
 #[test]
 fn test_redlock_direct_lock_succeeds() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
     let key = rl.get_unique_lock_id()?;
 
     let val = random_char(Some(20));
@@ -88,8 +96,8 @@ fn test_redlock_direct_lock_succeeds() -> Result<()> {
 
 #[test]
 fn test_redlock_unlock() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
     let key = rl.get_unique_lock_id()?;
 
     let val = rl.get_unique_lock_id()?;
@@ -112,8 +120,8 @@ fn test_redlock_unlock() -> Result<()> {
 
 #[test]
 fn test_redlock_lock() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
 
     let key = rl.get_unique_lock_id()?;
     let val = random_char(Some(20));
@@ -136,9 +144,9 @@ fn test_redlock_lock() -> Result<()> {
 
 #[test]
 fn test_redlock_lock_unlock() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
-    let rl2 = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
+    let rl2 = RedisLock::new(redis_address().clone());
 
     let key = rl.get_unique_lock_id()?;
     let val1 = random_char(Some(20));
@@ -166,9 +174,9 @@ fn test_redlock_lock_unlock() -> Result<()> {
 
 #[test]
 fn test_redlock_lock_unlock_raii() -> Result<()> {
-    println!("{}", ADDRESSES.join(","));
-    let rl = RedisLock::new(ADDRESSES.clone());
-    let rl2 = RedisLock::new(ADDRESSES.clone());
+    println!("{}", redis_address().join(","));
+    let rl = RedisLock::new(redis_address().clone());
+    let rl2 = RedisLock::new(redis_address().clone());
 
     let key = rl.get_unique_lock_id()?;
     let val1 = random_char(Some(20));
