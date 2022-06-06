@@ -1,12 +1,12 @@
-//! redlock-rs is an implementation of the [distributed locking
+//! redislock is an implementation of the [distributed locking
 //! mechanism](http://redis.io/topics/distlock) built on top of Redis.
 //!
 //! It is more or less a port of the [Ruby version](https://github.com/antirez/redlock-rb).
 //!
 //! # Basic Operation
 //! ```rust,no_run
-//! # use redlock::{random_char, RedLock};
-//! let rl = RedLock::new(vec![
+//! # use redislock::{random_char, RedisLock};
+//! let rl = RedisLock::new(vec![
 //!     "redis://127.0.0.1:6380/",
 //!     "redis://127.0.0.1:6381/",
 //!     "redis://127.0.0.1:6382/"]);
@@ -25,10 +25,10 @@
 //! rl.unlock(&lock);
 //! ```
 
-mod redlock;
+mod redislock;
 
-pub use crate::redlock::{Lock, RedLock};
 use rand::Rng;
+pub use crate::redislock::{Lock, RedisLock};
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                             abcdefghijklmnopqrstuvwxyz\
@@ -45,9 +45,7 @@ pub fn random_char(len: Option<usize>) -> Vec<u8> {
         } else {
             length = DEFAULT_RANDOM_LEN
         }
-    } else {
-        length = DEFAULT_RANDOM_LEN
-    }
+    } else { length = DEFAULT_RANDOM_LEN }
 
     let words: Vec<u8> = (0..length)
         .map(|_| {
@@ -60,8 +58,8 @@ pub fn random_char(len: Option<usize>) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use crate::random_char;
     use anyhow::Result;
+    use crate::random_char;
 
     #[test]
     fn test_random_char() -> Result<()> {

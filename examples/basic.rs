@@ -1,5 +1,5 @@
 use rand::Rng;
-use redlock::{random_char, RedLock};
+use redislock::{random_char, RedisLock};
 
 use std::env;
 use std::sync::mpsc::channel;
@@ -36,7 +36,7 @@ pub fn main() {
         let _ = thread::spawn(move || {
             let mut rng = rand::thread_rng();
 
-            let rl = RedLock::new(vec![
+            let rl = RedisLock::new(vec![
                 "redis://127.0.0.1:6380/",
                 "redis://127.0.0.1:6381/",
                 "redis://127.0.0.1:6382/",
