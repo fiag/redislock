@@ -1,3 +1,10 @@
+### 1.3.0 - 06. June 2022
+
+* Rename to `redislock`
+* Value can be manually given now
+* Fix some bugs
+* Retry count and Retry delay can be manually set
+
 ### 1.0.0 - 15. January 2016
 
 * Bump to stable 1.0 release

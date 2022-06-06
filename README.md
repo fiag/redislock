@@ -1,9 +1,9 @@
-# redlock-rs - Distributed locks with Redis
+# redislock-rs - Distributed locks with Redis
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/badboy/redlock-rs/CI)
-![Crates.io](https://img.shields.io/crates/v/redlock)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hxuchen/redislock/CI)
+![Crates.io](https://img.shields.io/crates/v/redislock)
 
-This is an implementation of Redlock, the [distributed locking mechanism][distlock] built on top of Redis. It is more or
+This is an implementation of Redislock, the [distributed locking mechanism][distlock] built on top of Redis. It is more or
 less a port of the [Ruby version][redlock.rb].
 
 It includes a sample application in [main.rs](src/main.rs).
@@ -17,10 +17,10 @@ cargo build --release
 ## Usage
 
 ```rust
-use redlock::{random_char, RedLock};
+use redislock::{random_char, RedisLock};
 
 fn main() {
-    let rl = RedLock::new(vec![
+    let rl = RedisLock::new(vec![
         "redis://127.0.0.1:6380/",
         "redis://127.0.0.1:6381/",
         "redis://127.0.0.1:6382/"]);
@@ -59,12 +59,11 @@ cargo run --release
 
 ## Contribute
 
-If you find bugs or want to help otherwise, please [open an issue](https://github.com/badboy/redlock-rs/issues).
+If you find bugs or want to help otherwise, please [open an issue](https://github.com/hxuchen/redislock/issues).
 
 ## Maintainer
 
-* From 2014 to June 2021 this crate was owned and maintained by [@badboy](https://github.com/badboy/)
-* From June 2021 on this crate is maintained by [@aig787](https://github.com/aig787)
+* Forked from [badboy/redlock-rs](https://github.com/badboy/redlock-rs), maintained by [@IronC](https://github.com/hxuchen)
 
 ## License
 

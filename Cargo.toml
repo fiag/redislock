@@ -1,14 +1,14 @@
 [package]
 
-name = "redlock"
+name = "redislock"
 version = "1.3.0"
 authors = ["hxuchen IronC <apehuang123@gmail.com>"]
 
 keywords = ["distributed", "locking"]
 description = "Implementation of the distributed locking mechanism built on top of Redis"
 
-homepage = "https://github.com/hxuchen/redlock-rs"
-repository = "https://github.com/hxuchen/redlock-rs"
+homepage = "https://github.com/hxuchen/redislock"
+repository = "https://github.com/hxuchen/redislock"
 
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -25,6 +25,5 @@ async = ["tokio"]
 tls = ["redis/tls"]
 
 [dev-dependencies]
-testcontainers = "0.14.0"
 once_cell = "1.7.2"
 anyhow = "1.0.40"
