@@ -1,7 +1,7 @@
 # redislock-rs - Distributed locks with Redis
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/badboy/redlock-rs/CI)
-![Crates.io](https://img.shields.io/crates/v/redlock)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hxuchen/redislock/CI)
+![Crates.io](https://img.shields.io/crates/v/redislock)
 
 This is an implementation of Redislock, the [distributed locking mechanism][distlock] built on top of Redis. It is more or
 less a port of the [Ruby version][redlock.rb].
