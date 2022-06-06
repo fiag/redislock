@@ -27,8 +27,8 @@
 
 mod redlock;
 
-use rand::Rng;
 pub use crate::redlock::{Lock, RedLock};
+use rand::Rng;
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                             abcdefghijklmnopqrstuvwxyz\
@@ -45,7 +45,9 @@ pub fn random_char(len: Option<usize>) -> Vec<u8> {
         } else {
             length = DEFAULT_RANDOM_LEN
         }
-    } else { length = DEFAULT_RANDOM_LEN }
+    } else {
+        length = DEFAULT_RANDOM_LEN
+    }
 
     let words: Vec<u8> = (0..length)
         .map(|_| {
@@ -58,8 +60,8 @@ pub fn random_char(len: Option<usize>) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use crate::random_char;
+    use anyhow::Result;
 
     #[test]
     fn test_random_char() -> Result<()> {

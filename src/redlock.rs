@@ -126,11 +126,18 @@ impl RedLock {
     ///
     /// If it fails. `None` is returned.
     /// A user should retry after a short wait time.
-    pub fn lock(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> Option<Lock> {
+    pub fn lock(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> Option<Lock> {
         // let val = self.get_unique_lock_id().unwrap();
 
         let retry_count = {
-            ||
+            || {
                 if let Some(count) = retry_count {
                     if count > 0 {
                         count
@@ -140,6 +147,7 @@ impl RedLock {
                 } else {
                     self.retry_count
                 }
+            }
         }();
 
         for _ in 0..retry_count {
@@ -189,7 +197,14 @@ impl RedLock {
     /// Returns a `RedLockGuard` instance which is a RAII wrapper for \
     /// the old `Lock` object
     #[cfg(feature = "async")]
-    pub async fn acquire_async(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedLockGuard<'_> {
+    pub async fn acquire_async(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> RedLockGuard<'_> {
         let lock;
         loop {
             match self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {
@@ -203,7 +218,14 @@ impl RedLock {
         RedLockGuard { lock }
     }
 
-    pub fn acquire(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedLockGuard<'_> {
+    pub fn acquire(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> RedLockGuard<'_> {
         let lock;
         loop {
             if let Some(l) = self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {
@@ -240,12 +262,12 @@ impl RedLock {
 
 #[cfg(test)]
 mod tests {
+    use crate::random_char;
     use anyhow::Result;
     use once_cell::sync::Lazy;
     use testcontainers::clients::Cli;
     use testcontainers::images::redis::Redis;
     use testcontainers::{Container, Docker};
-    use crate::random_char;
 
     use super::*;
 
