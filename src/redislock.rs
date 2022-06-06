@@ -131,11 +131,18 @@ impl RedisLock {
     ///
     /// If it fails. `None` is returned.
     /// A user should retry after a short wait time.
-    pub fn lock(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> Option<Lock> {
+    pub fn lock(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> Option<Lock> {
         // let val = self.get_unique_lock_id().unwrap();
 
         let retry_count = {
-            ||
+            || {
                 if let Some(count) = retry_count {
                     if count > 0 {
                         count
@@ -145,6 +152,7 @@ impl RedisLock {
                 } else {
                     self.retry_count
                 }
+            }
         }();
 
         for _ in 0..retry_count {
@@ -194,7 +202,14 @@ impl RedisLock {
     /// Returns a `RedisLockGuard` instance which is a RAII wrapper for \
     /// the old `Lock` object
     #[cfg(feature = "async")]
-    pub async fn acquire_async(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedisLockGuard<'_> {
+    pub async fn acquire_async(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> RedisLockGuard<'_> {
         let lock;
         loop {
             match self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {
@@ -208,7 +223,14 @@ impl RedisLock {
         RedisLockGuard { lock }
     }
 
-    pub fn acquire(&self, resource: &[u8], val: Vec<u8>, ttl: usize, retry_count: Option<u32>, retry_delay: Option<u32>) -> RedisLockGuard<'_> {
+    pub fn acquire(
+        &self,
+        resource: &[u8],
+        val: Vec<u8>,
+        ttl: usize,
+        retry_count: Option<u32>,
+        retry_delay: Option<u32>,
+    ) -> RedisLockGuard<'_> {
         let lock;
         loop {
             if let Some(l) = self.lock(resource, val.clone(), ttl, retry_count, retry_delay) {

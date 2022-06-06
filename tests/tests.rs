@@ -1,8 +1,8 @@
 extern crate core;
 
-use std::env;
 use anyhow::Result;
-use redislock::{Lock, random_char, RedisLock};
+use redislock::{random_char, Lock, RedisLock};
+use std::env;
 
 // static DOCKER: Lazy<Cli> = Lazy::new(Cli::default);
 // static CONTAINERS: Lazy<Vec<Container<Redis>>> = Lazy::new(|| {
@@ -20,10 +20,8 @@ use redislock::{Lock, random_char, RedisLock};
 
 fn redis_address() -> Vec<String> {
     match env::var("ADDRESSES") {
-        Ok(addresses) => {
-            addresses.split(',').map(String::from).collect()
-        },
-        Err(_) => panic!("redis ADDRESSES must be exported")
+        Ok(addresses) => addresses.split(',').map(String::from).collect(),
+        Err(_) => panic!("redis ADDRESSES must be exported"),
     }
 }
 
