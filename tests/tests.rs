@@ -1,13 +1,13 @@
+extern crate core;
+
+use std::env;
 use anyhow::Result;
-use testcontainers::images::redis::Redis;
-use testcontainers::Container;
-use testcontainers::clients::Cli;
 use redislock::{Lock, random_char, RedisLock};
 
 // static DOCKER: Lazy<Cli> = Lazy::new(Cli::default);
 // static CONTAINERS: Lazy<Vec<Container<Redis>>> = Lazy::new(|| {
 //     (0..3)
-//         .map(|_| DOCKER.run(Redis::default()))
+//         .map(|_| DOCKER.run(Redis::default().with_tag("6-alpine")))
 //         .collect()
 // });
 // static ADDRESSES: Lazy<Vec<String>> = Lazy::new(|| match std::env::var("ADDRESSES") {
@@ -19,11 +19,11 @@ use redislock::{Lock, random_char, RedisLock};
 // });
 
 fn redis_address() -> Vec<String> {
-    let docker = Cli::default();
-    let containers:Vec<Container<Redis>> = (0..3).map(|_| docker.run(Redis::default())).collect();
-    match std::env::var("ADDRESSES") {
-        Ok(addresses) => addresses.split(',').map(String::from).collect(),
-        Err(_) => containers.iter().map(|c| format!("redis://localhost:{}", c.get_host_port_ipv4(6379))).collect()
+    match env::var("ADDRESSES") {
+        Ok(addresses) => {
+            addresses.split(',').map(String::from).collect()
+        },
+        Err(_) => panic!("redis ADDRESSES must be exported")
     }
 }
 
