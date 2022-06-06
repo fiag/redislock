@@ -1,5 +1,5 @@
 use rand::Rng;
-use redlock::RedLock;
+use redlock::{random_char, RedLock};
 
 use std::env;
 use std::sync::mpsc::channel;
@@ -46,7 +46,8 @@ pub fn main() {
             for _ in 0..number_of_incrs {
                 let lock;
                 loop {
-                    if let Some(l) = rl.lock(resource.as_bytes(), 1000) {
+                    let rand_val = random_char(Some(20));
+                    if let Some(l) = rl.lock(resource.as_bytes(), rand_val, 1000, None, None) {
                         lock = l;
                         break;
                     }
