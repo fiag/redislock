@@ -7,6 +7,7 @@ use rand::{thread_rng, Rng};
 use redis::Value::Okay;
 use redis::{Client, IntoConnectionInfo, RedisResult, Value};
 
+const ALWAYS_TRY: u32 = u32::MAX;
 const DEFAULT_RETRY_COUNT: u32 = 3;
 const DEFAULT_RETRY_DELAY: u32 = 200;
 const CLOCK_DRIFT_FACTOR: f32 = 0.01;
@@ -155,41 +156,81 @@ impl RedisLock {
             }
         }();
 
-        for _ in 0..retry_count {
-            let mut n = 0;
-            let start_time = Instant::now();
-            for client in &self.servers {
-                if self.lock_instance(client, resource, &val, ttl) {
-                    n += 1;
-                }
-            }
-
-            let drift = (ttl as f32 * CLOCK_DRIFT_FACTOR) as usize + 2;
-            let elapsed = start_time.elapsed();
-            let validity_time = ttl
-                .saturating_sub(drift)
-                .saturating_sub(elapsed.as_secs() as usize * 1000)
-                .saturating_sub(elapsed.subsec_nanos() as usize / 1_000_000);
-
-            if n >= self.quorum && validity_time > 0 {
-                return Some(Lock {
-                    lock_manager: self,
-                    resource: resource.to_vec(),
-                    val,
-                    validity_time,
-                });
-            } else {
+        if retry_count == ALWAYS_TRY {
+            loop {
+                let mut n = 0;
+                let start_time = Instant::now();
                 for client in &self.servers {
-                    self.unlock_instance(client, resource, &val);
+                    if self.lock_instance(client, resource, &val, ttl) {
+                        n += 1;
+                    }
+                }
+
+                let drift = (ttl as f32 * CLOCK_DRIFT_FACTOR) as usize + 2;
+                let elapsed = start_time.elapsed();
+                let validity_time = ttl
+                    .saturating_sub(drift)
+                    .saturating_sub(elapsed.as_secs() as usize * 1000)
+                    .saturating_sub(elapsed.subsec_nanos() as usize / 1_000_000);
+
+                if n >= self.quorum && validity_time > 0 {
+                    return Some(Lock {
+                        lock_manager: self,
+                        resource: resource.to_vec(),
+                        val,
+                        validity_time,
+                    });
+                } else {
+                    for client in &self.servers {
+                        self.unlock_instance(client, resource, &val);
+                    }
+                }
+
+                if let Some(retry_delay) = retry_delay {
+                    sleep(Duration::from_millis(u64::from(retry_delay)))
+                } else {
+                    let mut rng = thread_rng();
+                    let n = rng.gen_range(0..self.retry_delay);
+                    sleep(Duration::from_millis(u64::from(n)));
                 }
             }
+        } else {
+            for _ in 0..retry_count {
+                let mut n = 0;
+                let start_time = Instant::now();
+                for client in &self.servers {
+                    if self.lock_instance(client, resource, &val, ttl) {
+                        n += 1;
+                    }
+                }
 
-            if let Some(retry_delay) = retry_delay {
-                sleep(Duration::from_millis(u64::from(retry_delay)))
-            } else {
-                let mut rng = thread_rng();
-                let n = rng.gen_range(0..self.retry_delay);
-                sleep(Duration::from_millis(u64::from(n)));
+                let drift = (ttl as f32 * CLOCK_DRIFT_FACTOR) as usize + 2;
+                let elapsed = start_time.elapsed();
+                let validity_time = ttl
+                    .saturating_sub(drift)
+                    .saturating_sub(elapsed.as_secs() as usize * 1000)
+                    .saturating_sub(elapsed.subsec_nanos() as usize / 1_000_000);
+
+                if n >= self.quorum && validity_time > 0 {
+                    return Some(Lock {
+                        lock_manager: self,
+                        resource: resource.to_vec(),
+                        val,
+                        validity_time,
+                    });
+                } else {
+                    for client in &self.servers {
+                        self.unlock_instance(client, resource, &val);
+                    }
+                }
+
+                if let Some(retry_delay) = retry_delay {
+                    sleep(Duration::from_millis(u64::from(retry_delay)))
+                } else {
+                    let mut rng = thread_rng();
+                    let n = rng.gen_range(0..self.retry_delay);
+                    sleep(Duration::from_millis(u64::from(n)));
+                }
             }
         }
         None
